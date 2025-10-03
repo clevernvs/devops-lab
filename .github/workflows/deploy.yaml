@@ -1,0 +1,57 @@
+name: Pipeline CI/CD
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  job1:
+    name: build_ecr
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v5.0.0
+
+      - name: "Configure AWS Credentials"
+        uses: aws-actions/configure-aws-credentials@v4.3.1
+        with:
+          role-to-assume: arn:aws:0000
+          aws-region: us-east-2
+
+      - name: "Login na Amazon CR"
+        uses: aws-actions/amazon-ecr-login@v2.0.1
+
+      - name: "Build, Tag and Push image to Amazon ECR"
+        run: |
+          docker build -t devops-lab-nginx:v1.0 .
+
+  job2:
+    name: deploy_ec2
+    needs: job1
+    env:
+      INSTANCE_KEY: ${{ secrets.INSTANCE_KEY }}
+      PUBLIC_IP: ${{ secrets.PUBLIC_IP }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Deploy EC2 via SSH"
+        run: |
+          echo "$INSTANCE_KEY" > chave-site.pem
+          chmod 400 chave-site.pem
+          ssh -i chave-site.pem -o StrictHostKeyChecking=no ec2-user@$PUBLIC_IP << EOF
+            aws ecr get-login-password --region us-east-2 | docker login --username AWs --password-stdin 123456789012.dkr.ecr.us-east-1.amazonaws.com
+            docker pull 123456789012.dkr.ecr.us-east-1.amazonaws.com/devops-lab-nginx:v1.0
+            echo "Parando o container antigo site"
+            docker stop site || true
+            echo "Removendo o container antigo site"
+            docker rm site || true
+            echo "Rodando a nova tag da imagem"
+            docker run -d -p 80:80 --name site 123456789012.dkr.ecr.us-east-1.amazonaws.com/devops-lab-nginx:v1.0
+            echo "Imagem atualizada com sucesso!"
+            docker ps
+          EOF
+          rm chave-site.pem
