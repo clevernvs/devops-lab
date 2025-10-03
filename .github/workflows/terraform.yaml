@@ -4,7 +4,25 @@ on:
   workflow_dispatch:
     inputs:
       apply:
-        description: "Executa o Terraform apply"
+        description: "Executa o Terraform Apply"
+        required: true
+        default: "false"
+        type: choice
+        options:
+          - true
+          - false
+
+      plan_destroy:
+        description: "Planejar o Plan Destroy"
+        required: true
+        default: "false"
+        type: choice
+        options:
+          - true
+          - false
+
+      destroy:
+        description: "Executa o Terraform Destroy"
         required: true
         default: "false"
         type: choice
@@ -40,8 +58,16 @@ jobs:
         run: terraform validate
 
       - name: "Terraform Plan"
-        run: terraform plan -out=tfplan
+        run: terraform plan -out=tfplan.tfout
 
       - name: "Terraform Apply"
-        run: terraform apply -auto-approve tfplan
+        run: terraform apply -auto-approve tfplan.tfout
         if: github.event.inputs.apply == 'true'
+
+      - name: "Terraform Plan Destroy"
+        run: terraform plan -destroy -out=tfplan.tfout
+        if: github.event.inputs.plan_destroy == 'true'
+
+      - name: "Terraform Destroy"
+        run: terraform apply -destroy -auto-approve tfplan.tfout
+        if: github.event.inputs.destroy == 'true'
