@@ -1,5 +1,9 @@
 # Laboratorio DevOps
 
+## O projeto implementa
+
+- IaaC com Terraform
+- CI/CD com Github Actions
 
 # Terraform
 
